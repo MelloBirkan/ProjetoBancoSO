@@ -14,12 +14,9 @@ typedef struct {
     double amount;
 } Transaction;
 
-pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 double read_balance(BankAccount* account) {
     double balance;
 
-    pthread_mutex_lock(&file_mutex);
     FILE* file = fopen(account->filename, "r");
     if (file) {
         fscanf(file, "%lf", &balance);
@@ -28,13 +25,11 @@ double read_balance(BankAccount* account) {
         printf("Error opening file %s\n", account->filename);
         balance = 0;
     }
-    pthread_mutex_unlock(&file_mutex);
 
     return balance;
 }
 
 void write_balance(BankAccount* account, double balance) {
-    pthread_mutex_lock(&file_mutex);
     FILE* file = fopen(account->filename, "w");
     if (file) {
         fprintf(file, "%.2f", balance);
@@ -42,7 +37,6 @@ void write_balance(BankAccount* account, double balance) {
     } else {
         printf("Error opening file %s\n", account->filename);
     }
-    pthread_mutex_unlock(&file_mutex);
 }
 
 void* transfer(void* arg) {
@@ -65,8 +59,8 @@ void* transfer(void* arg) {
 }
 
 int main() {
-    BankAccount account1 = {1, "account1.txt"};
-    BankAccount account2 = {2, "account2.txt"};
+    BankAccount account1 = {1, "saldoA.txt"};
+    BankAccount account2 = {2, "saldoB.txt"};
 
     // Initialize account files
     write_balance(&account1, 1000.0);
