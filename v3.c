@@ -1,21 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <semaphore.h>
+#include <unistd.h>
 
 typedef struct {
     char *filename;
     double amount;
 } Transaction;
 
-sem_t semaphore;
+sem_t sem_A, sem_B;
+
+void acquire_both_semaphores() {
+    while (1) {
+        if (sem_trywait(&sem_A) == 0) {
+            if (sem_trywait(&sem_B) == 0) {
+                break;
+            } else {
+                sem_post(&sem_A);
+            }
+        }
+        usleep(100); // Wait for a short time before trying again
+    }
+}
+
+void release_both_semaphores() {
+    sem_post(&sem_A);
+    sem_post(&sem_B);
+}
 
 void *transfer(void *arg) {
     Transaction *t = (Transaction *)arg;
 
-    // Lock the critical region using semaphore
-    sem_wait(&semaphore);
+    // Lock semaphores for both files
+    acquire_both_semaphores();
 
     // Read the sender's balance
     double sender_balance;
@@ -26,7 +44,7 @@ void *transfer(void *arg) {
     // Check if the sender has enough balance
     if (sender_balance < t->amount) {
         printf("Insufficient balance in %s.\n", t->filename);
-        sem_post(&semaphore);
+        release_both_semaphores();
         return NULL;
     }
 
@@ -48,10 +66,10 @@ void *transfer(void *arg) {
     fprintf(receiver_file, "%.2lf", receiver_balance);
     fclose(receiver_file);
 
-    printf("Transferred %.2lf from %s to %s.\n", t->amount, t->filename, receiver_filename);
+    // Unlock semaphores for both files
+    release_both_semaphores();
 
-    // Unlock the critical region using semaphore
-    sem_post(&semaphore);
+    printf("Transferred %.2lf from %s to %s.\n", t->amount, t->filename, receiver_filename);
     return NULL;
 }
 
@@ -60,8 +78,9 @@ int main() {
     Transaction transaction_A = {"saldoA.txt", 100};
     Transaction transaction_B = {"saldoB.txt", 200};
 
-    // Initialize the semaphore
-    sem_init(&semaphore, 0, 1);
+    // Initialize semaphores
+    sem_init(&sem_A, 0, 1);
+    sem_init(&sem_B, 0, 1);
 
     pthread_create(&client_A, NULL, transfer, (void *)&transaction_A);
     pthread_create(&client_B, NULL, transfer, (void *)&transaction_B);
@@ -69,8 +88,9 @@ int main() {
     pthread_join(client_A, NULL);
     pthread_join(client_B, NULL);
 
-    // Destroy the semaphore
-    sem_destroy(&semaphore);
+    // Destroy semaphores
+    sem_destroy(&sem_A);
+    sem_destroy(&sem_B);
 
     return 0;
 }

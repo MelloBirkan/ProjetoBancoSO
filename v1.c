@@ -4,81 +4,59 @@
 #include <unistd.h>
 
 typedef struct {
-    int account_number;
-    char filename[64];
-} BankAccount;
-
-typedef struct {
-    BankAccount* from;
-    BankAccount* to;
+    char *filename;
     double amount;
 } Transaction;
 
-double read_balance(BankAccount* account) {
-    double balance;
+void *transfer(void *arg) {
+    Transaction *t = (Transaction *)arg;
 
-    FILE* file = fopen(account->filename, "r");
-    if (file) {
-        fscanf(file, "%lf", &balance);
-        fclose(file);
-    } else {
-        printf("Error opening file %s\n", account->filename);
-        balance = 0;
+    // Read the sender's balance
+    double sender_balance;
+    FILE *sender_file = fopen(t->filename, "r");
+    fscanf(sender_file, "%lf", &sender_balance);
+    fclose(sender_file);
+
+    // Check if the sender has enough balance
+    if (sender_balance < t->amount) {
+        printf("Insufficient balance in %s.\n", t->filename);
+        return NULL;
     }
 
-    return balance;
-}
+    // Update the sender's balance
+    sender_balance -= t->amount;
+    sender_file = fopen(t->filename, "w");
+    fprintf(sender_file, "%.2lf", sender_balance);
+    fclose(sender_file);
 
-void write_balance(BankAccount* account, double balance) {
-    FILE* file = fopen(account->filename, "w");
-    if (file) {
-        fprintf(file, "%.2f", balance);
-        fclose(file);
-    } else {
-        printf("Error opening file %s\n", account->filename);
-    }
-}
+    // Read and update the receiver's balance
+    char *receiver_filename = t->filename[5] == 'A' ? "saldoB.txt" : "saldoA.txt";
+    double receiver_balance;
+    FILE *receiver_file = fopen(receiver_filename, "r");
+    fscanf(receiver_file, "%lf", &receiver_balance);
+    fclose(receiver_file);
 
-void* transfer(void* arg) {
-    Transaction* trans = (Transaction*)arg;
+    receiver_balance += t->amount;
+    receiver_file = fopen(receiver_filename, "w");
+    fprintf(receiver_file, "%.2lf", receiver_balance);
+    fclose(receiver_file);
 
-    double from_balance = read_balance(trans->from);
-    double to_balance = read_balance(trans->to);
-
-    if (from_balance >= trans->amount) {
-        from_balance -= trans->amount;
-        to_balance += trans->amount;
-
-        write_balance(trans->from, from_balance);
-        write_balance(trans->to, to_balance);
-    } else {
-        printf("Insufficient funds in account %d\n", trans->from->account_number);
-    }
-
+    printf("Transferred %.2lf from %s to %s.\n", t->amount, t->filename, receiver_filename);
     return NULL;
 }
 
 int main() {
-    BankAccount account1 = {1, "saldoA.txt"};
-    BankAccount account2 = {2, "saldoB.txt"};
+    pthread_t client_A, client_B;
+    Transaction transaction_A = {"saldoA.txt", 100};
+    Transaction transaction_B = {"saldoB.txt", 200};
 
-    // Initialize account files
-    write_balance(&account1, 1000.0);
-    write_balance(&account2, 1000.0);
+    pthread_create(&client_A, NULL, transfer, (void *)&transaction_A);
+    pthread_create(&client_B, NULL, transfer, (void *)&transaction_B);
 
-    Transaction transaction1 = {&account1, &account2, 300.0};
-    Transaction transaction2 = {&account2, &account1, 500.0};
-
-    pthread_t thread1, thread2;
-
-    pthread_create(&thread1, NULL, transfer, (void*)&transaction1);
-    pthread_create(&thread2, NULL, transfer, (void*)&transaction2);
-
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
-
-    printf("Account 1 balance: %.2f\n", read_balance(&account1));
-    printf("Account 2 balance: %.2f\n", read_balance(&account2));
+    pthread_join(client_A, NULL);
+    pthread_join(client_B, NULL);
 
     return 0;
 }
+
+
