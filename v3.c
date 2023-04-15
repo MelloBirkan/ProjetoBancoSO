@@ -43,7 +43,7 @@ void *transfer(void *arg) {
 
     // Check if the sender has enough balance
     if (sender_balance < t->amount) {
-        printf("Insufficient balance in %s.\n", t->filename);
+        printf("Saldo insuficiente em %s.\n", t->filename);
         release_both_semaphores();
         return NULL;
     }
@@ -69,9 +69,26 @@ void *transfer(void *arg) {
     // Unlock semaphores for both files
     release_both_semaphores();
 
-    printf("Transferred %.2lf from %s to %s.\n", t->amount, t->filename, receiver_filename);
+    printf("Transferiu %.2lf de %s para %s.\n", t->amount, t->filename, receiver_filename);
     return NULL;
 }
+
+
+void print_balances() {
+    double balance_A, balance_B;
+    FILE *file_A = fopen("saldoA.txt", "r");
+    FILE *file_B = fopen("saldoB.txt", "r");
+
+    fscanf(file_A, "%lf", &balance_A);
+    fscanf(file_B, "%lf", &balance_B);
+
+    fclose(file_A);
+    fclose(file_B);
+
+    printf("Saldo em A: %.2lf\n", balance_A);
+    printf("Saldo em B: %.2lf\n", balance_B);
+}
+
 
 int main() {
     pthread_t client_A, client_B;
@@ -91,6 +108,7 @@ int main() {
     // Destroy semaphores
     sem_destroy(&sem_A);
     sem_destroy(&sem_B);
+    print_balances();
 
     return 0;
 }

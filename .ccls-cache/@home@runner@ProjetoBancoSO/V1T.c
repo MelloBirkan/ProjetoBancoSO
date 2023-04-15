@@ -22,7 +22,7 @@ void *transfer(void *arg) {
 
     // Verifica se o remetente possui saldo suficiente para a transferência
     if (sender_balance < t->amount) {
-        printf("Insufficient balance in %s.\n", t->filename);
+        printf("Saldo insuficiente em %s.\n", t->filename);
         return NULL;
     }
 
@@ -43,9 +43,24 @@ void *transfer(void *arg) {
     fclose(receiver_file);
 
     // Imprime uma mensagem informando o sucesso da transferência
-    printf("Transferred %.2lf from %s to %s.\n", t->amount, t->filename, receiver_filename);
+    printf("Transferiu %.2lf de %s para %s.\n", t->amount, t->filename, receiver_filename);
 
     return NULL;
+}
+
+void print_balances() {
+    double balance_A, balance_B;
+    FILE *file_A = fopen("saldoA.txt", "r");
+    FILE *file_B = fopen("saldoB.txt", "r");
+
+    fscanf(file_A, "%lf", &balance_A);
+    fscanf(file_B, "%lf", &balance_B);
+
+    fclose(file_A);
+    fclose(file_B);
+
+    printf("Saldo em A: %.2lf\n", balance_A);
+    printf("Saldo em B: %.2lf\n", balance_B);
 }
 
 
@@ -62,7 +77,7 @@ int main() {
     // Aguarda a conclusão das threads antes de prosseguir com a execução do programa
     pthread_join(client_A, NULL);    
     pthread_join(client_B, NULL);
-
+    print_balances();
 return 0;
 }
 
